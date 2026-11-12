@@ -92,6 +92,6 @@ Sistem menyediakan dua tingkatan hak akses untuk pengujian dan operasional:
 ## **2\. Godmode (Administrator Utama)**
 
 * **Akses:** Diaktifkan melalui tautan tersembunyi (*secret link*) di bagian paling bawah (*footer*) halaman web.  
-* **Otentikasi PIN:** Masukkan PIN `admin123` saat jendela verifikasi muncul.  
+* **Otentikasi PIN:** Masukkan PIN saat jendela verifikasi muncul.  
 * **Wewenang:** Akses penuh ke seluruh direktori data, eksekusi pembersihan/reset database, simulasi ETL manual, serta manajemen peran pengguna.
 
