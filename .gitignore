@@ -1,0 +1,25 @@
+# 1. Folder Virtual Environment & Cache
+venv/
+__pycache__/
+.vscode/
+
+# 2. Blokir semua file database & data mentah
+data/*.csv
+data/*.sqlite
+config/rules_catalog.csv
+
+# 3. Blokir semua folder hasil uji coba & demo lama
+demo/
+app_streamlit/
+docs/
+tests/
+tools/
+.claude/
+
+# 4. Blokir semua file sisa prototipe & log di root
+findings*.json
+tb-cms-prototype*.html
+CLAUDE*.md
+SKRIP_DEMO.md
+.env
+launch.json

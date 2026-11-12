@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-2">
+    <h2>Ringkasan, tanggal pantau {{ tgl }}</h2>
+</div>
+<p class="text-muted mb-4">Status menggambarkan DATA, bukan kondisi pasien. Dihitung dari jumlah kode aturan berbeda yang kena: 0 = Sinambung, 1 = Perlu Cek, 2 atau lebih = Terputus.</p>
+
+<div class="row mb-4">
+    <!-- Card Total Episode -->
+    <div class="col">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <h6 class="card-title text-muted">Total episode</h6>
+                <h2 class="card-text">{{ r.total }}</h2>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Card Status -->
+    {% for s in status_list %}
+    <div class="col">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <h6 class="card-title text-muted">{{ s }}</h6>
+                <h2 class="card-text">{{ r.status[s] }}</h2>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<h4>Episode yang kena, per indikator</h4>
+<p class="text-muted small">Satu episode dihitung sekali per indikator, walaupun kena beberapa aturan di indikator itu.</p>
+<div class="row mb-4">
+    {% for ind in ind_list %}
+    <div class="col-md-3">
+        <div class="card shadow-sm mb-3">
+            <div class="card-body">
+                <h6 class="card-title text-muted">{{ ind }}</h6>
+                <h2 class="card-text">{{ r.indikator[ind] }}</h2>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<h4>Kesimpulan per tahap lifecycle</h4>
+<div class="card shadow-sm">
+    <div class="card-body">
+        <p class="card-text">{{ kesimpulan }}</p>
+    </div>
+</div>
+{% endblock %}

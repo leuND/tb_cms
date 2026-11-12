@@ -1,0 +1,176 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<h2>Episode, tanggal pantau {{ tgl }}</h2>
+
+<!-- Form Filter -->
+<form method="GET" action="{{ url_for('episode') }}" class="row g-3 mb-4">
+    <div class="col-md-3">
+        <label class="form-label font-weight-bold">Status</label>
+        <select name="status" class="form-select" onchange="this.form.submit()">
+            <option value="Semua" {% if f_status == 'Semua' %}selected{% endif %}>Semua</option>
+            {% for s in status_list %}
+            <option value="{{ s }}" {% if f_status == s %}selected{% endif %}>{{ s }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-md-3">
+        <label class="form-label font-weight-bold">Indikator</label>
+        <select name="indikator" class="form-select" onchange="this.form.submit()">
+            <option value="Semua" {% if f_indikator == 'Semua' %}selected{% endif %}>Semua</option>
+            {% for i in ind_list %}
+            <option value="{{ i }}" {% if f_indikator == i %}selected{% endif %}>{{ i }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-md-3">
+        <label class="form-label font-weight-bold">Tahap</label>
+        <select name="tahap" class="form-select" onchange="this.form.submit()">
+            <option value="Semua" {% if f_tahap == 'Semua' %}selected{% endif %}>Semua</option>
+            {% for t in tahap_list %}
+            <option value="{{ t }}" {% if f_tahap == t %}selected{% endif %}>{{ t }}</option>
+            {% endfor %}
+        </select>
+    </div>
+</form>
+
+<p class="text-muted small">{{ daftar|length }} episode. Klik tombol <b>Detail</b> untuk melihat RME lengkap.</p>
+
+<!-- Tabel Episode -->
+<div class="table-responsive mb-4">
+    <table class="table table-hover table-bordered align-middle">
+        <thead class="table-light">
+            <tr>
+                <th>ID Episode</th>
+                <th>Faskes</th>
+                <th>Lifecycle Status</th>
+                <th>Status Data</th>
+                <th>Jml Aturan</th>
+                <th>Jml Temuan</th>
+                <th>Kode</th>
+                <th>Aksi</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in daftar %}
+            <tr {% if selected_id == row.id_episode %}class="table-active"{% endif %}>
+                <td><b>{{ row.id_episode }}</b></td>
+                <td>{{ row.faskes }}</td>
+                <td>{{ row.lifecycle_status }}</td>
+                <td>
+                    {% if row.status == 'Sinambung' %}<span class="badge bg-success">Sinambung</span>
+                    {% elif row.status == 'Perlu Cek' %}<span class="badge bg-warning text-dark">Perlu Cek</span>
+                    {% else %}<span class="badge bg-danger">Terputus</span>{% endif %}
+                </td>
+                <td>{{ row.jumlah_aturan }}</td>
+                <td>{{ row.jumlah_temuan }}</td>
+                <td><code>{{ row.kode }}</code></td>
+                <td>
+                    <a href="{{ url_for('episode', status=f_status, indikator=f_indikator, tahap=f_tahap, id=row.id_episode) }}" class="btn btn-sm btn-outline-primary">Detail</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Section Detail & Timeline Episode -->
+{% if detail %}
+<hr class="my-4">
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-white">
+        <h3 class="card-title mb-0">
+            {{ detail.episode.id_episode }}, {{ detail.episode.faskes }}:
+            <span class="badge {% if detail.status.status == 'Sinambung' %}bg-success{% elif detail.status.status == 'Perlu Cek' %}bg-warning text-dark{% else %}bg-danger{% endif %}">
+                {{ detail.status.status }}
+            </span>
+        </h3>
+        <small class="text-muted">{{ detail.status.jumlah_aturan }} aturan berbeda, {{ detail.status.jumlah_temuan }} temuan</small>
+    </div>
+    <div class="card-body">
+        <!-- Grid Informasi Pasien -->
+        <div class="row mb-3">
+            <div class="col-md-4">
+                <strong>Pasien</strong><br>
+                {{ detail.episode.id_pasien }}, {{ detail.episode.jenis_kelamin or '-' }}, lahir {{ detail.episode.tgl_lahir or '-' }}
+            </div>
+            <div class="col-md-4">
+                <strong>Lifecycle Status</strong><br>
+                {{ detail.episode.lifecycle_status }}
+            </div>
+            <div class="col-md-4">
+                <strong>Sumber / Pembuat</strong><br>
+                {{ detail.episode.sumber_sistem or '(kosong)' }} / {{ detail.episode.dibuat_oleh or '(kosong)' }}
+            </div>
+        </div>
+
+        <!-- Lifecycle Status Badges -->
+        <div class="row text-center mb-4">
+            {% for t in detail.lifecycle %}
+            <div class="col">
+                <div class="p-2 border rounded {% if t.kode %}bg-danger text-white{% else %}bg-success text-white{% endif %}">
+                    <small class="fw-bold d-block">{{ t.tahap }}</small>
+                    <small>{% if t.kode %}{{ t.kode|join(', ') }}{% else %}OK{% endif %}</small>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Timeline Vertikal -->
+        <h5 class="fw-bold">Timeline</h5>
+        <div class="ps-3 border-start border-2 border-secondary my-3">
+            {% for x in timeline %}
+            <div class="position-relative pb-3 ps-3">
+                <!-- Dot penanda -->
+                <span class="position-absolute translate-middle p-1 
+                    {% if x.warna == 'merah' %}bg-danger
+                    {% elif x.warna == 'hijau' %}bg-success
+                    {% else %}bg-secondary{% endif %} 
+                    {% if x.jenis == 'batas' %}rounded-1{% else %}rounded-circle{% endif %}" 
+                    style="left: -1px; top: 10px; width: 12px; height: 12px;"></span>
+                
+                <div class="small text-muted">
+                    {{ x.tanggal or 'tanggal kosong' }} · {{ x.tahap }} {% if x.jenis == 'batas' %}· batas{% endif %}
+                </div>
+                <div>
+                    <strong>{{ x.peristiwa }}</strong> <span class="text-muted">{{ x.keterangan or '' }}</span>
+                </div>
+                
+                {% for t in x.temuan %}
+                <div class="small text-danger mt-1">
+                    <strong>{{ t.kode }}</strong> {{ t.detail or '' }} <span class="text-muted">(steward: {{ t.steward or '-' }})</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% endfor %}
+        </div>
+        <small class="text-muted d-block mb-4">Merah = ada temuan. Hijau = aman. Abu-abu = titik batas yang belum terlewati. Kotak = titik batas, bulat = peristiwa.</small>
+
+        <!-- Audit Trail -->
+        <h5 class="fw-bold">Audit Trail</h5>
+        {% if detail.audit.empty %}
+        <p class="text-muted small">Tidak ada baris audit.</p>
+        {% else %}
+        <div class="table-responsive mb-3">
+            <table class="table table-sm table-bordered">
+                <thead><tr><th>Waktu</th><th>Oleh</th><th>Aksi</th></tr></thead>
+                <tbody>
+                    {% for _, a in detail.audit.iterrows() %}
+                    <tr><td>{{ a.waktu }}</td><td>{{ a.oleh }}</td><td>{{ a.aksi }}</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+
+        <!-- Salinan SITB -->
+        <h5 class="fw-bold">Salinan SITB</h5>
+        {% if detail.sitb %}
+        <p class="small">Jenis kelamin: {{ detail.sitb.jenis_kelamin }}, Diagnosis: {{ detail.sitb.tgl_diagnosis }}, Status: {{ detail.sitb.status_sinkron }}</p>
+        {% else %}
+        <p class="text-muted small">Tidak ada salinan SITB.</p>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+{% endblock %}

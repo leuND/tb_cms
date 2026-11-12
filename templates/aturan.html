@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<h2>Katalog Aturan</h2>
+<p class="text-muted small">Sumber: config/rules_catalog.csv. Ambang dibaca dari katalog, tidak ditulis di kode.</p>
+
+<div class="table-responsive">
+    <table class="table table-striped table-bordered align-middle">
+        <thead class="table-light">
+            <tr>
+                <th>Kode</th>
+                <th>Indikator</th>
+                <th>Kondisi</th>
+                <th>Tahap</th>
+                <th>Keparahan</th>
+                <th>Steward</th>
+                <th>Aspek</th>
+                <th>Dasar</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in aturan_list %}
+            <tr>
+                <td><code>{{ r.kode }}</code></td>
+                <td>{{ r.indikator }}</td>
+                <td>{{ r.kondisi }}</td>
+                <td>{{ r.tahap }}</td>
+                <td>
+                    <span class="badge {% if r.keparahan == 'tinggi' %}bg-danger{% elif r.keparahan == 'sedang' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+                        {{ r.keparahan }}
+                    </span>
+                </td>
+                <td>{{ r.steward }}</td>
+                <td>{{ r.aspek }}</td>
+                <td><small>{{ r.dasar }}</small></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<h2>Data & Skema</h2>
+<p class="mb-3">
+    Alur: <b>SQLite (tabel sumber)</b> → <b>engine (15 aturan)</b> → <b>tabel hasil</b> → 
+    <b>core/queries.py</b> → <b>tampilan ini</b>. Tampilan hanya membaca.
+</p>
+
+<div class="table-responsive mb-3">
+    <table class="table table-bordered align-middle">
+        <thead class="table-light">
+            <tr>
+                <th>Nama Tabel / View</th>
+                <th>Jenis</th>
+                <th>Jumlah Baris</th>
+                <th>Kolom</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for t in tabel_list %}
+            <tr>
+                <td><b>{{ t.nama }}</b></td>
+                <td><span class="badge {% if t.jenis == 'table' %}bg-primary{% else %}bg-info text-dark{% endif %}">{{ t.jenis }}</span></td>
+                <td>{{ t.jumlah_baris }}</td>
+                <td><small class="text-muted"><code>{{ t.kolom }}</code></small></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<p class="text-muted small">
+    Tabel sumber: pasien, episodes, followups, outcomes, salinan_sitb, audit_logs, aturan.<br>
+    Tabel hasil (ditulis engine): run_pemantauan, temuan, episode_status.<br>
+    View: v_episode_status, v_ringkasan, v_temuan.
+</p>
+{% endblock %}
