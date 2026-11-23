@@ -1,110 +1,129 @@
-# **TB-CMS Web Interface**
+# TB-CMS Web Interface
 
-# **Deskripsi Sistem**
+TB-CMS (Tuberculosis Case Management System) adalah aplikasi web berbasis Flask untuk pemantauan dan pengelolaan kasus Tuberkulosis secara longitudinal.
 
-**TB-CMS (Tuberculosis Case Management System)** adalah platform manajemen kasus Tuberkulosis berbasis web yang dirancang untuk mendukung pemantauan, pencatatan, dan analisis rekam medis pasien TB secara longitudinal. Sistem ini membantu tenaga kesehatan (Nakes) dan administrator dalam mengelola rantai perawatan pasien mulai dari skrining awal, diagnosis, rekam pengobatan, hingga integrasi pemrosesan data medis berstandar klinis.
+Sistem mendukung pembagian akses Tenaga Kesehatan (Nakes) dan Administrator, penyaringan pasien, pemrosesan batch sintetis, serta penyimpanan hasil pemantauan. Semua data dalam repositori merupakan data sintetis.
 
-# **🌟 Fitur Utama**
+## Fitur
 
-* **Role-Based Access Control (RBAC):** Otentikasi dan otorisasi bertingkat yang membedakan hak akses operasional harian untuk Tenaga Kesehatan (*Nakesmode*) dan kendali penuh konfigurasi sistem untuk Administrator (*Godmode*).  
-* **Filter Longitudinal Berbasis Pasien:** Penelusuran riwayat medis pasien secara riil berbasis timeline longitudinal, memudahkan evaluasi kepatuhan minum obat, perubahan status dahak/bakteriologis, dan penyesuaian regimen medis dari waktu ke waktu.  
-* **Simulated ETL (Extract, Transform, Load):** Fitur pemrosesan data otomatis untuk mengonversi data mentah rekam medis menjadi agregat analitik dan format terstruktur yang siap dianalisis tanpa mengganggu kinerja basis data utama.  
-* **Responsive UI dengan Offcanvas Sidebar:** Antarmuka modern berstandar aksesibilitas tinggi menggunakan bilah navigasi *offcanvas* yang responsif di berbagai ukuran layar (desktop, tablet, maupun *smartphone*).
+- Pemantauan status dan indikator longitudinal pasien.
+- Pemisahan tampilan Nakes dan Administrator.
+- Pemrosesan batch dari folder `masuk/`.
+- Penyimpanan hasil run dan audit ke SQLite.
+- Antarmuka responsif menggunakan Bootstrap.
 
-# **🛠️ Tech Stack**
+## Teknologi
 
-| Komponen | Teknologi | Keterangan |
-| :---- | :---- | :---- |
-| **Backend Language** | Python 3.10+ | Bahasa pemrograman utama logika bisnis |
-| **Web Framework** | Flask | Micro-framework untuk pengolahan *routing* dan sesi |
-| **Database Engine** | SQLite3 | Penyimpanan relasional lokal yang ringan dan cepat |
-| **Data Processing** | Pandas | Modul analisis dan transformasi data kuantitatif / ETL |
-| **Frontend Framework** | Bootstrap 5 | Kerangka kerja UI responsif dan pemodelan komponen |
+| Komponen | Teknologi |
+|---|---|
+| Bahasa | Python 3.10+ |
+| Web framework | Flask |
+| Basis data | SQLite |
+| Pemrosesan data | Pandas |
+| Environment | python-dotenv |
+| Frontend | Bootstrap 5 |
 
-# **📂 Struktur Direktori Utama**
+## Struktur
 
-```
-tb-cms/
-├── app_flask.py          # Entry point utama aplikasi Flask & konfigurasi route
+```text
+tb_cms/
+├── app_flask.py
 ├── core/
-│   └── queries.py        # Abstraksi query SQL dan fungsi manipulasi data
+│   ├── pemantauan.py
+│   ├── queries.py
+│   └── sinkron.py
+├── engine/
 ├── templates/
-│   ├── base.html         # Skeleton Layout utama (termasuk Offcanvas Sidebar)
-│   ├── dashboard.html    # Tampilan visualisasi data & matriks pasien
-│   └── longitudinal.html # Antarmuka pemantauan rekam medis pasien
-└── static/
-    ├── css/              # Kustomisasi gaya visual
-    └── js/               # Skrip interaktivitas antarmuka
+├── static/
+├── data/
+├── masuk/
+├── tools/
+│   └── siapkan_demo.py
+└── pythonanywhere_wsgi.py.example
 ```
 
-# **🚀 Cara Menjalankan**
+## Menjalankan Secara Lokal
 
-## **1\. Persiapan Lingkungan (Prerequisites)**
+Persyaratan: Python 3.10 atau lebih baru.
 
-Pastikan Python versi 3.10 atau yang lebih baru telah terpasang di sistem Anda.
-
-## **2\. Kloning Repositori & Navigasi**
-
-```
-git clone https://github.com/example/tb-cms.git
-cd tb-cms
-```
-
-## **3\. Buat dan Aktifkan Virtual Environment**
-
-* **Linux/macOS:**
-
-```
-python3 -m venv venv
-source venv/bin/activate
-```
-
-* **Windows:**
-
-```
+```bash
 python -m venv venv
-venv\Scripts\activate
-```
+source venv/bin/activate
+pip install -r requirements.txt
 
-## **4\. Install Dependensi**
-
-```
-pip install flask pandas
-```
-
-## **5\. Jalankan Aplikasi**
-
-```
+cp .env.example .env
+python tools/siapkan_demo.py
 python app_flask.py
 ```
 
-Buka peramban (browser) dan akses alamat `http://127.0.0.1:5000/`.
+Buka `http://127.0.0.1:5000/`.
 
-# **Deploy PythonAnywhere**
+Server development hanya boleh digunakan secara lokal. Jalankan Flask dengan `debug=False`; deployment produksi harus memakai WSGI server/platform.
 
-1. Kloning repo ke `/home/USERNAME/tb_cms` dan buat virtual environment.
-2. Instal dependency:
-   `python -m pip install --user -r requirements.txt`
-3. Buat SQLite awal:
-   `python tools/siapkan_demo.py`
-4. Salin `.env.example` menjadi `.env`, lalu isi `SECRET_KEY` dan, bila diperlukan, `ADMIN_PASSWORD`.
-5. Saat membuat Web app, pilih Flask/manual configuration dan arahkan WSGI file ke contoh `pythonanywhere_wsgi.py.example`.
-6. Ganti `USERNAME` pada `PROJECT_DIR`, path database, dan path folder masuk sesuai akun.
-7. Jangan mengunggah `.env` ke Git; isinya tetap ditolak oleh `.gitignore`.
-8. Reload web app dari tab **Web** setelah instalasi atau perubahan `.env`.
+## Konfigurasi Lingkungan
 
-# **🔒 Panduan Akses Role**
+Rahasia dibaca dari environment atau file `.env`. Jangan menyimpan nilai rahasia di repository.
 
-Sistem menyediakan dua tingkatan hak akses untuk pengujian dan operasional:
+| Variabel | Keterangan |
+|---|---|
+| `SECRET_KEY` | Wajib; kunci sesi Flask. |
+| `ADMIN_PASSWORD` | Opsional; kosongkan untuk menonaktifkan login Administrator. |
+| `TBCMS_DB` | Opsional; path SQLite. Default: `data/tb_cms.sqlite`. |
+| `TBCMS_MASUK` | Opsional; folder batch masuk. Default: `masuk/`. |
 
-## **1\. Nakesmode (Tenaga Kesehatan)**
+Hasilkan kunci sesi acak:
 
-* **Akses:** Dipilih langsung melalui menu *dropdown* peran pada halaman otentikasi/header utama.  
-* **Wewenang:** Menginput data rekam medis harian, melihat daftar pasien, memantau grafik longitudinal, dan memperbarui status pengobatan pasien.
+```bash
+python -c "import secrets; print(secrets.token_hex(32))"
+```
 
-## **2\. Godmode (Administrator Utama)**
+## Deploy PythonAnywhere
 
-* **Akses:** Diaktifkan melalui tautan tersembunyi (*secret link*) di bagian paling bawah (*footer*) halaman web.  
-* **Otentikasi PIN:** Masukkan PIN saat jendela verifikasi muncul.  
-* **Wewenang:** Akses penuh ke seluruh direktori data, eksekusi pembersihan/reset database, simulasi ETL manual, serta manajemen peran pengguna.
+1. Clone repository ke `/home/USERNAME/tb_cms`.
+2. Buat virtualenv dan instal dependency:
 
+```bash
+cd ~/tb_cms
+python3.13 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
+
+3. Buat database demo sintetis:
+
+```bash
+python tools/siapkan_demo.py
+```
+
+4. Buat `.env` dari `.env.example`, lalu isi `SECRET_KEY` dan variabel yang diperlukan:
+
+```bash
+cp .env.example .env
+nano .env
+```
+
+Contoh path:
+
+```text
+TBCMS_DB=/home/USERNAME/tb_cms/data/tb_cms.sqlite
+TBCMS_MASUK=/home/USERNAME/tb_cms/masuk
+```
+
+5. Di konfigurasi web app PythonAnywhere:
+   - Pilih Python versi yang sesuai dengan virtualenv.
+   - Isi virtualenv: `/home/USERNAME/tb_cms/venv`.
+   - Edit WSGI configuration file menggunakan `pythonanywhere_wsgi.py.example`.
+   - Ganti `USERNAME` dengan username PythonAnywhere.
+   - Klik **Reload**.
+
+Disk akun PythonAnywhere bersifat persisten, tetapi tetap perlu mempertimbangkan kuota disk dan lokasi file SQLite. Menjalankan `python tools/siapkan_demo.py` akan menghapus dan membangun ulang database demo; jalankan hanya saat reset database memang diperlukan.
+
+## Peran
+
+### Nakes
+
+Tenaga kesehatan dapat membuka ringkasan dan daftar episode sesuai cakupan faskesnya.
+
+### Administrator
+
+Login admin memerlukan `ADMIN_PASSWORD`. Jika variabel ini kosong, login Administrator dinonaktifkan.
