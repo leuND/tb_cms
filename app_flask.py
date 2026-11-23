@@ -1,105 +1,134 @@
+import hmac
+import os
+import secrets
 import sys
-import time
+from datetime import date
 from pathlib import Path
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
+
+from dotenv import load_dotenv
+from flask import Flask, render_template, request, redirect, url_for, session, flash
 
 # Setup path biar bisa import folder core
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 
-from core import pemantauan, queries as q
+from core import pemantauan, queries as q, sinkron
+
+# Rahasia dibaca dari .env (lihat .env.example), tidak pernah ditulis di kode
+load_dotenv(ROOT / ".env")
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "")  # kosong = login admin dinonaktifkan
 
 app = Flask(__name__)
-app.secret_key = 'rahasia_tb_cms' # Dibutuhkan untuk session dan flash message
+# Tanpa SECRET_KEY: kunci acak sementara, sesi hilang setiap server restart
+app.secret_key = os.environ.get("SECRET_KEY") or secrets.token_hex(32)
 
 @app.before_request
 def set_default_tanggal():
-    # Set default tanggal pantau kalau user belum pilih
+    # Tanggal aktif harus punya run. Kalau belum (mis. database baru di-reset),
+    # pakai 2026-10-31 atau run terakhir; kalau belum ada run sama sekali, kosongkan.
     tgl_list = q.daftar_tgl_pantau()
-    if tgl_list:
-        awal = "2026-10-31" if "2026-10-31" in tgl_list else tgl_list[-1]
-        if 'tgl' not in session or session['tgl'] not in tgl_list:
-            session['tgl'] = awal
+    if session.get('tgl') not in tgl_list:
+        if tgl_list:
+            session['tgl'] = "2026-10-31" if "2026-10-31" in tgl_list else tgl_list[-1]
+        else:
+            session.pop('tgl', None)
+    # Pengunjung baru = nakes dari faskes pertama. Admin hanya lewat password.
+    if 'role' not in session:
+        session['role'] = 'nakes'
+    if session['role'] == 'nakes' and session.get('faskes_akses') not in q.daftar_faskes():
+        session['faskes_akses'] = q.daftar_faskes()[0]
 
 @app.context_processor
 def inject_global_data():
     # Bawa data ini ke semua file HTML tanpa harus di-pass satu-satu
+    tgl = session.get('tgl')
     return {
-        'daftar_tgl': q.daftar_tgl_pantau(),
-        'tgl_aktif': session.get('tgl')
+        'daftar_faskes': q.daftar_faskes(),
+        'tgl_aktif': tgl,
+        'hari_ini': date.today().isoformat(),     # batas atas kalender
+        'run_aktif': q.info_run(tgl) if tgl else None,
+        # Batch di masuk/ yang menunggu diproses (hanya dihitung untuk admin)
+        'batch_menunggu': (sum(b['status'] == 'menunggu' for b in sinkron.daftar_batch())
+                           if session.get('role') == 'admin' else 0),
     }
 
 @app.route('/set_tanggal', methods=['POST'])
 def set_tanggal():
-    # Logic dropdown ganti tanggal di sidebar
-    tgl = request.form.get('tgl')
-    if tgl in q.daftar_tgl_pantau():
-        session['tgl'] = tgl
-    return redirect(request.referrer or url_for('ringkasan'))
-
-@app.route('/jalankan', methods=['POST'])
-def jalankan():
-    # Logic tombol "Jalankan pemantauan"
-    tgl_baru = request.form.get('tgl_baru')
-    if tgl_baru:
-        hasil = pemantauan.jalankan_pemantauan(tgl_baru)
-        session['tgl'] = tgl_baru
-        flash(f"Pemantauan untuk {tgl_baru} berhasil dijalankan!", "success")
+    # Kalender di sidebar. Tanggal yang sudah punya run: tampilkan hasil tersimpan.
+    # Tanggal baru: engine dijalankan sekali, hasilnya disimpan sebagai run baru.
+    try:
+        tgl = date.fromisoformat(request.form.get('tgl', ''))
+    except ValueError:
+        flash("Format tanggal tidak valid.", "danger")
+        return redirect(request.referrer or url_for('ringkasan'))
+    if tgl > date.today():
+        flash(f"Tanggal pantau {tgl.isoformat()} ditolak: tidak boleh setelah hari ini.", "danger")
+        return redirect(request.referrer or url_for('ringkasan'))
+    tgl = tgl.isoformat()
+    if tgl not in q.daftar_tgl_pantau():
+        r = pemantauan.jalankan_pemantauan(tgl)
+        flash(f"Run baru untuk {tgl}: {r['Sinambung']} Sinambung, {r['Perlu Cek']} Perlu Cek, "
+              f"{r['Terputus']} Terputus.", "info")
+    session['tgl'] = tgl
     return redirect(request.referrer or url_for('ringkasan'))
 
 @app.route('/')
-@app.route('/godmode')
-def godmode():
-    session['role'] = 'admin'
-    # Hapus filter faskes agar admin bisa lihat se-kota
-    session.pop('faskes_akses', None) 
-    flash("Mode Admin aktif. Menu teknis & Sinkronisasi terbuka.", "success")
+def index():
+    # Halaman utama selalu ke Ringkasan. Admin hanya lewat password (/login_admin).
     return redirect(url_for('ringkasan'))
 
 @app.route('/nakesmode')
 def nakesmode():
     session['role'] = 'nakes'
-    # Simulasi Nakes dari PKM Keputih (Nanti bisa diganti dinamis)
-    session['faskes_akses'] = 'PKM Keputih' 
-    flash("Mode Nakes aktif. Data difilter berdasarkan pasien PKM Keputih.", "info")
+    session['faskes_akses'] = q.daftar_faskes()[0]
+    flash(f"Mode Nakes aktif. Data difilter: pasien yang pernah singgah di {session['faskes_akses']}.", "info")
     return redirect(url_for('ringkasan'))
 
 
-@app.route('/simulasi_etl', methods=['POST'])
-def simulasi_etl():
+@app.route('/proses_masuk', methods=['POST'])
+def proses_masuk():
+    # Simulasi sinkronisasi (data uji): proses batch siap di folder masuk/ lewat core/sinkron.py
     if session.get('role') != 'admin':
-        return jsonify({"status": "error", "pesan": "Akses ditolak"}), 403
-    
-    # 1. Delay buatan seakan-akan sedang sedot API SIMRS
-    time.sleep(2.5) 
-    
-    # 2. Panggil fungsi impor aslimu di sini (opsional untuk sekarang)
-    # import_dari_csv_ke_sqlite()
-    
-    return jsonify({
-        "status": "sukses", 
-        "pesan": "Sinkronisasi ETL dari SIMRS berhasil dijalankan."
-    })
+        flash("Akses ditolak. Sinkronisasi khusus Admin.", "danger")
+        return redirect(url_for('ringkasan'))
+    hasil = sinkron.proses_folder_masuk(tgl_aktif=session.get('tgl'))
+    if not hasil['batch']:
+        flash("Tidak ada batch baru di folder masuk/.", "info")
+    for b in hasil['batch']:
+        if b['status'] == 'loaded':
+            flash(f"{b['batch_id']}: {b['jumlah_baris']} baris dimuat, episode baru/berubah: "
+                  f"{', '.join(b['episode']) or '-'}.", "success")
+        else:
+            flash(f"{b['batch_id']} {b['status']}: {b['pesan']}", "danger")
+    seb, ses = hasil['ringkasan_sebelum'], hasil['ringkasan_sesudah']
+    if seb and ses and seb != ses:
+        ubah = ", ".join(f"{s} {seb[s]} → {ses[s]}" for s in q.STATUS)
+        flash(f"Ringkasan {session.get('tgl')}: {ubah}.", "info")
+    return redirect(request.referrer or url_for('ringkasan'))
 
 @app.route('/ganti_faskes', methods=['POST'])
 def ganti_faskes():
     # Menangkap pilihan dari dropdown Nakes
     faskes_baru = request.form.get('faskes')
-    if faskes_baru:
+    if session.get('role') == 'nakes' and faskes_baru in q.daftar_faskes():
         session['faskes_akses'] = faskes_baru
         flash(f"Faskes aktif diubah menjadi: {faskes_baru}", "info")
     return redirect(request.referrer or url_for('ringkasan'))
 
 @app.route('/login_admin', methods=['POST'])
 def login_admin():
-    # Menangkap PIN dari pop-up rahasia di layar Nakes
-    pin = request.form.get('pin')
-    if pin == "admin123":  # Hardcode sederhana untuk prototipe
+    # Satu password bersama untuk tampilan teknis (tanpa akun)
+    if not ADMIN_PASSWORD:
+        flash("Login admin dinonaktifkan: ADMIN_PASSWORD belum diisi di .env.", "danger")
+        return redirect(url_for('ringkasan'))
+    password = request.form.get('password', '')
+    # compare_digest: waktu perbandingan konstan, tidak membocorkan berapa karakter yang cocok
+    if hmac.compare_digest(password.encode(), ADMIN_PASSWORD.encode()):
         session['role'] = 'admin'
         session.pop('faskes_akses', None) 
         flash("Akses Admin diberikan. Menu teknis terbuka.", "success")
     else:
-        flash("PIN salah. Akses ditolak.", "danger")
+        flash("Password salah. Akses ditolak.", "danger")
     return redirect(url_for('ringkasan'))
 
 @app.route('/ringkasan')
@@ -108,8 +137,9 @@ def ringkasan():
     if not tgl:
         return render_template('kosong.html') # Kalau DB benar-benar kosong
     
-    r = q.ringkasan(tgl)
-    kesimpulan = q.kesimpulan_tahap(tgl)
+    faskes_akses = session.get('faskes_akses')  # None untuk admin
+    r = q.ringkasan(tgl, faskes_akses=faskes_akses)
+    kesimpulan = q.kesimpulan_tahap(tgl, faskes_akses=faskes_akses)
     return render_template('ringkasan.html', 
                            tgl=tgl, 
                            r=r, 
@@ -149,6 +179,9 @@ def episode():
     detail_data = None
     timeline_data = None
 
+    if selected_id and not q.boleh_akses(selected_id, faskes_akses):
+        flash(f"Episode {selected_id} bukan milik pasien yang pernah singgah di {faskes_akses}.", "warning")
+        selected_id = None
     if selected_id:
         detail_data = q.detail_episode(selected_id, tgl)
         if detail_data:
@@ -180,14 +213,6 @@ def aturan():
     kolom = ["kode", "indikator", "kondisi", "tahap", "keparahan", "steward", "aspek", "dasar"]
     data_aturan = df_aturan[kolom].to_dict(orient='records')
     return render_template('aturan.html', aturan_list=data_aturan)
-
-@app.route('/pengujian')
-def pengujian():
-    if session.get('role') != 'admin':
-        flash("Akses terbatas. Halaman ini khusus untuk Admin / Data Steward.", "warning")
-        return redirect(url_for('ringkasan'))
-        
-    return render_template('pengujian.html')
 
 @app.route('/data_skema')
 def data_skema():

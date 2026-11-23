@@ -93,6 +93,9 @@
             <div class="col-md-4">
                 <strong>Pasien</strong><br>
                 {{ detail.episode.id_pasien }}, {{ detail.episode.jenis_kelamin or '-' }}, lahir {{ detail.episode.tgl_lahir or '-' }}
+                {% if not detail.episode.nik %}
+                <small class="d-block text-danger">NIK kosong: episode ini tidak bisa ditautkan ke episode lain milik pasien yang sama (tertangkap C1).</small>
+                {% endif %}
             </div>
             <div class="col-md-4">
                 <strong>Lifecycle Status</strong><br>

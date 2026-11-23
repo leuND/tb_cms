@@ -1,0 +1,16 @@
+﻿kode,indikator,kondisi,tahap,aspek,ambang,satuan,keparahan,steward,dasar
+C1,Completeness,"Field wajib (NIK, tanggal lahir, jenis kelamin, tanggal diagnosis, metode diagnosis, tanggal mulai, paduan) kosong",Create,Data Quality; Policies and Standards,,,tinggi,Faskes,Kelengkapan field wajib SITB (cek juknis)
+C2,Completeness,Lebih dari {ambang} {satuan} sejak mulai pengobatan tanpa outcome,Use,Data Quality; Ownership and Stewardship,240,hari,tinggi,Wasor,"Asumsi tim, cek juknis"
+C3,Completeness,Follow-up jatuh tempo (jadwal + {ambang} {satuan}) tanpa hasil,Use,Data Quality,21,hari,sedang,Faskes,"Asumsi tim, cek juknis"
+K1,Consistency,Tanggal mulai pengobatan sebelum tanggal diagnosis,Create,Policies and Standards; Data Quality,0,hari,tinggi,Faskes,Logika urutan tanggal
+K2,Consistency,Outcome Sembuh dengan hasil follow-up terakhir positif,Use,Data Quality; Policies and Standards,,,tinggi,Faskes,Logika klinis outcome
+K3,Consistency,Sembuh atau Pengobatan Lengkap dicatat sebelum {ambang} {satuan} pengobatan,Use,Policies and Standards,150,hari,sedang,Faskes,"Asumsi tim, cek juknis"
+K4,Consistency,Jenis kelamin atau tanggal diagnosis berbeda antara RME dan SITB,Share,Policies and Standards; Metadata Management,,,sedang,Wasor,Rekonsiliasi RME dan SITB (Pratiwi 2025)
+K5,Consistency,"Dua episode dengan NIK sama berjarak kurang dari {ambang} {satuan}, kecuali episode baru tercatat sebagai rujukan dari episode lama",Share,Data Quality; Compliance and Risk Management,60,hari,sedang,Wasor,Asumsi tim
+T1,Timeliness,Hasil follow-up diinput lebih dari {ambang} {satuan} setelah pemeriksaan,Use,Data Quality,7,hari,rendah,Faskes,Asumsi tim
+T2,Timeliness,Pemeriksaan follow-up lebih dari {ambang} {satuan} setelah jadwal,Use,Data Quality; Ownership and Stewardship,14,hari,sedang,Faskes,Asumsi tim
+T3,Timeliness,Outcome diinput lebih dari {ambang} {satuan} setelah tanggal outcome,Use,Data Quality,30,hari,sedang,Faskes,Asumsi tim
+R1,Traceability,Sistem sumber atau petugas pembuat tidak tercatat,Store,Metadata Management,,,sedang,Admin,Metadata lineage
+R2,Traceability,Record diubah tanpa audit trail (updated_at > created_at tanpa baris audit log),Store,Metadata Management; Compliance and Risk Management,,,tinggi,Admin,Audit trail
+R3,Traceability,"Outcome lebih dari {ambang} {satuan}, status belum Arsip",Archive,Compliance and Risk Management; Ownership and Stewardship,365,hari,rendah,Unit rekam medis,Asumsi tim
+R4,Traceability,Lebih dari {ambang} {satuan} sejak kunjungan terakhir tanpa berita acara pemusnahan,Destroy,Policies and Standards; Compliance and Risk Management,25,tahun,tinggi,Unit rekam medis,PMK 24/2022 Pasal 39

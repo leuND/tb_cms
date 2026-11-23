@@ -91,9 +91,9 @@
                     <small class="d-block text-muted mb-1 fw-semibold">Faskes Aktif (Nakes):</small>
                     <form action="{{ url_for('ganti_faskes') }}" method="POST">
                         <select name="faskes" class="form-select form-select-sm text-primary font-monospace shadow-none" onchange="this.form.submit()">
-                            <option value="PKM Keputih" {% if session.get('faskes_akses') == 'PKM Keputih' %}selected{% endif %}>PKM Keputih</option>
-                            <option value="PKM Mulyorejo" {% if session.get('faskes_akses') == 'PKM Mulyorejo' %}selected{% endif %}>PKM Mulyorejo</option>
-                            <option value="RS Haji" {% if session.get('faskes_akses') == 'RS Haji' %}selected{% endif %}>RS Haji</option>
+                            {% for f in daftar_faskes %}
+                            <option value="{{ f }}" {% if session.get('faskes_akses') == f %}selected{% endif %}>{{ f }}</option>
+                            {% endfor %}
                         </select>
                     </form>
                 </div>
@@ -106,14 +106,20 @@
                 </div>
             {% endif %}
             
-            <!-- Ganti Tanggal Pantau -->
+            <!-- Ganti Tanggal Pantau (kalender; tanggal baru langsung dijalankan engine) -->
             <form action="{{ url_for('set_tanggal') }}" method="POST" class="mb-4">
                 <label class="form-label fw-bold small">Tanggal pantau</label>
-                <select name="tgl" class="form-select shadow-none mb-2" onchange="this.form.submit()">
-                    {% for t in daftar_tgl %}
-                        <option value="{{ t }}" {% if t == tgl_aktif %}selected{% endif %}>{{ t }}</option>
-                    {% endfor %}
-                </select>
+                <input type="date" name="tgl" class="form-control shadow-none mb-2"
+                       value="{{ tgl_aktif or '' }}" max="{{ hari_ini }}" required
+                       onchange="this.form.submit()">
+                {% if run_aktif %}
+                <small class="d-block text-muted" style="font-size: .75rem;">
+                    Run dijalankan {{ run_aktif.dijalankan_pada.replace('T', ' ') }}.
+                    Hasil dihitung dari data sumber pada saat run itu.
+                </small>
+                {% else %}
+                <small class="d-block text-muted" style="font-size: .75rem;">Belum ada run. Pilih tanggal.</small>
+                {% endif %}
             </form>
 
             <!-- Menu Navigasi Terpadu -->
@@ -134,23 +140,20 @@
                         <a class="nav-link {% if request.endpoint == 'aturan' %}active{% endif %}" href="{{ url_for('aturan') }}">Aturan</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'pengujian' %}active{% endif %}" href="{{ url_for('pengujian') }}">Pengujian</a>
-                    </li>
-                    <li class="nav-item">
                         <a class="nav-link {% if request.endpoint == 'data_skema' %}active{% endif %}" href="{{ url_for('data_skema') }}">Data & Skema</a>
                     </li>
 
-                    <!-- Jalankan Pemantauan & Sinkronisasi -->
+                    <!-- Simulasi sinkronisasi: proses batch di folder masuk/ -->
                     <div class="card mt-3 border-warning shadow-sm">
                         <div class="card-body p-2">
-                            <form action="{{ url_for('jalankan') }}" method="POST">
-                                <label class="form-label fw-bold small text-warning">Jalankan Engine</label>
-                                <input type="date" name="tgl_baru" class="form-control form-control-sm mb-2 shadow-none" value="2026-10-31" required>
-                                <button type="submit" class="btn btn-warning btn-sm w-100 fw-bold mb-2">Jalankan</button>
+                            <form action="{{ url_for('proses_masuk') }}" method="POST"
+                                  onsubmit="const b=this.querySelector('button'); b.disabled=true; b.innerHTML='<span class=&quot;spinner-border spinner-border-sm&quot;></span> Memproses...';">
+                                <label class="form-label fw-bold small text-warning mb-1">Simulasi sinkronisasi (data uji)</label>
+                                <small class="d-block text-muted mb-2" style="font-size: .75rem;">
+                                    Tidak terhubung ke SIMRS/SITB asli. Batch menunggu: {{ batch_menunggu }}
+                                </small>
+                                <button type="submit" class="btn btn-sm btn-outline-warning w-100">🔄 Proses folder masuk</button>
                             </form>
-                            <button id="btn-etl" class="btn btn-sm btn-outline-warning w-100" onclick="jalankanETL()">
-                                🔄 Tarik Data SIMRS
-                            </button>
                         </div>
                     </div>
                 {% endif %}
@@ -184,7 +187,7 @@
         </div>
     </main>
 
-    <!-- Modal Pop-up PIN Admin -->
+    <!-- Modal Pop-up Password Admin -->
     <div class="modal fade" id="adminModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-sm">
             <div class="modal-content border-danger">
@@ -194,8 +197,8 @@
                 </div>
                 <div class="modal-body p-3">
                     <form action="{{ url_for('login_admin') }}" method="POST">
-                        <label class="form-label small fw-bold text-muted">Masukkan PIN Administrator</label>
-                        <input type="password" name="pin" class="form-control form-control-sm mb-3 shadow-none" placeholder="PIN" required autofocus>
+                        <label class="form-label small fw-bold text-muted">Masukkan password admin</label>
+                        <input type="password" name="password" class="form-control form-control-sm mb-3 shadow-none" placeholder="Password" required autofocus>
                         <button type="submit" class="btn btn-danger btn-sm w-100 fw-bold">Masuk</button>
                     </form>
                 </div>
@@ -221,24 +224,6 @@
         }
     });
 
-    // Simulasi ETL
-    function jalankanETL() {
-        const btn = document.getElementById('btn-etl');
-        btn.disabled = true;
-        btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Menyinkronkan...';
-
-        fetch('{{ url_for("simulasi_etl") }}', { method: 'POST' })
-            .then(res => res.json())
-            .then(data => {
-                alert(data.pesan);
-                location.reload();
-            })
-            .catch(err => alert('Gagal melakukan sinkronisasi.'))
-            .finally(() => {
-                btn.disabled = false;
-                btn.innerHTML = '🔄 Tarik Data SIMRS';
-            });
-    }
     </script>
 </body>
 </html>

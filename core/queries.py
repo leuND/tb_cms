@@ -7,6 +7,7 @@ Aturan lapisan ini:
 - Tidak mengimpor streamlit. Mengembalikan dict, list, atau DataFrame,
   supaya bisa dipakai ulang oleh UI lain (mis. FastAPI) nanti.
 """
+import os
 import re
 import sqlite3
 from pathlib import Path
@@ -14,7 +15,8 @@ from pathlib import Path
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parent.parent
-DB = ROOT / "data" / "tb_cms.sqlite"
+# TBCMS_DB bisa diisi untuk memakai database lain (mis. database sementara di tes)
+DB = Path(os.environ.get("TBCMS_DB", ROOT / "data" / "tb_cms.sqlite"))
 
 STATUS = ["Sinambung", "Perlu Cek", "Terputus"]
 WARNA_STATUS = {"Sinambung": "green", "Perlu Cek": "orange", "Terputus": "red"}
@@ -42,12 +44,58 @@ def _isi_kondisi(df):
 
 
 def daftar_tgl_pantau(db=DB):
-    """List tanggal pantau yang sudah dijalankan engine, urut naik ('YYYY-MM-DD')."""
-    return _sql("SELECT tgl_pantau FROM run_pemantauan ORDER BY tgl_pantau", db=db)["tgl_pantau"].tolist()
+    """List tanggal pantau yang sudah dijalankan engine, urut naik ('YYYY-MM-DD').
+    List kosong kalau database atau tabel run_pemantauan belum ada."""
+    try:
+        return _sql("SELECT tgl_pantau FROM run_pemantauan ORDER BY tgl_pantau", db=db)["tgl_pantau"].tolist()
+    except (sqlite3.OperationalError, pd.errors.DatabaseError):
+        return []
 
 
-def ringkasan(tgl, db=DB):
-    """Ringkasan satu tanggal pantau.
+def info_run(tgl, db=DB):
+    """Dict id_run, tgl_pantau, dijalankan_pada, jumlah_aturan untuk satu tanggal, atau None."""
+    df = _sql("SELECT * FROM run_pemantauan WHERE tgl_pantau = ?", (tgl,), db)
+    return df.iloc[0].to_dict() if len(df) else None
+
+
+def daftar_faskes(db=DB):
+    """Daftar faskes yang ada di data episode, urut abjad."""
+    return _sql("SELECT DISTINCT faskes FROM episodes WHERE faskes IS NOT NULL ORDER BY faskes",
+                db=db)["faskes"].tolist()
+
+
+def _episode_singgah(faskes, db=DB):
+    """Set id_episode milik pasien yang pernah SINGGAH di faskes ini.
+
+    Singgah = pasien punya minimal satu episode di faskes ini. Semua episode pasien itu
+    ikut, termasuk episode di faskes lain (mis. sekarang kontrol di RS Haji), supaya
+    nakes bisa menelusuri kesinambungan pasien lintas faskes.
+    Pasien dicocokkan lewat NIK: id_pasien yang singgah diperluas ke semua id_pasien
+    dengan NIK sama (faskes lain bisa memberi id_pasien berbeda). NIK kosong: hanya
+    id_pasien itu sendiri yang dipakai (cadangan).
+    """
+    return set(_sql("""
+        WITH pasien_x AS (SELECT DISTINCT id_pasien FROM episodes WHERE faskes = ?),
+             nik_x AS (SELECT DISTINCT nik FROM pasien
+                       WHERE id_pasien IN (SELECT id_pasien FROM pasien_x)
+                         AND nik IS NOT NULL AND TRIM(nik) <> ''),
+             pasien_semua AS (SELECT id_pasien FROM pasien_x
+                              UNION
+                              SELECT id_pasien FROM pasien WHERE nik IN (SELECT nik FROM nik_x))
+        SELECT id_episode FROM episodes
+        WHERE id_pasien IN (SELECT id_pasien FROM pasien_semua)""", (faskes,), db)["id_episode"])
+
+
+def boleh_akses(id_episode, faskes_akses=None, db=DB):
+    """True kalau episode boleh dibuka. faskes_akses None = admin, semua boleh."""
+    if not faskes_akses:
+        return True
+    return id_episode in _episode_singgah(faskes_akses, db)
+
+
+def ringkasan(tgl, faskes_akses=None, db=DB):
+    """Ringkasan satu tanggal pantau. faskes_akses: None = semua faskes (admin),
+    atau nama faskes = hanya episode pasien yang pernah singgah di faskes itu.
 
     Hasil dict:
       status          {"Sinambung": n, "Perlu Cek": n, "Terputus": n}
@@ -56,21 +104,34 @@ def ringkasan(tgl, db=DB):
       tahap_indikator DataFrame (baris = tahap, kolom = indikator),
                       isi = jumlah episode yang kena aturan di sel itu
     """
-    st = _sql("SELECT status, jumlah FROM v_ringkasan WHERE tgl_pantau = ?", (tgl,), db)
     status = {s: 0 for s in STATUS}
-    status.update(dict(zip(st["status"], st["jumlah"].astype(int))))
+    if faskes_akses:
+        ep = _sql("SELECT id_episode, status FROM v_episode_status WHERE tgl_pantau = ?", (tgl,), db)
+        ep = ep[ep["id_episode"].isin(_episode_singgah(faskes_akses, db))]
+        status.update({k: int(v) for k, v in ep["status"].value_counts().items()})
+    else:
+        st = _sql("SELECT status, jumlah FROM v_ringkasan WHERE tgl_pantau = ?", (tgl,), db)
+        status.update(dict(zip(st["status"], st["jumlah"].astype(int))))
 
-    tm = _sql("SELECT DISTINCT id_episode, indikator, tahap FROM v_temuan WHERE tgl_pantau = ?", (tgl,), db)
+    tm = _temuan_tahap(tgl, faskes_akses, db)
     per_ind = tm.drop_duplicates(["id_episode", "indikator"])["indikator"].value_counts()
     indikator = {i: int(per_ind.get(i, 0)) for i in INDIKATOR}
 
     return {"status": status, "total": sum(status.values()),
-            "indikator": indikator, "tahap_indikator": _matriks_tahap(tgl, db)}
+            "indikator": indikator, "tahap_indikator": _matriks_tahap(tgl, faskes_akses, db)}
 
 
-def _matriks_tahap(tgl, db=DB):
-    """DataFrame baris = tahap, kolom = indikator, isi = jumlah episode yang kena."""
+def _temuan_tahap(tgl, faskes_akses=None, db=DB):
+    """Pasangan unik (id_episode, indikator, tahap) yang kena, opsional difilter faskes singgah."""
     tm = _sql("SELECT DISTINCT id_episode, indikator, tahap FROM v_temuan WHERE tgl_pantau = ?", (tgl,), db)
+    if faskes_akses:
+        tm = tm[tm["id_episode"].isin(_episode_singgah(faskes_akses, db))]
+    return tm
+
+
+def _matriks_tahap(tgl, faskes_akses=None, db=DB):
+    """DataFrame baris = tahap, kolom = indikator, isi = jumlah episode yang kena."""
+    tm = _temuan_tahap(tgl, faskes_akses, db)
     return (tm.groupby(["tahap", "indikator"])["id_episode"].nunique()
               .unstack(fill_value=0)
               .reindex(index=TAHAP, columns=INDIKATOR, fill_value=0))
@@ -84,13 +145,13 @@ def _gabung(kata):
     return ", ".join(kata[:-1]) + ", dan " + kata[-1]
 
 
-def kesimpulan_tahap(tgl, db=DB):
+def kesimpulan_tahap(tgl, faskes_akses=None, db=DB):
     """Satu paragraf kesimpulan dari matriks tahap x indikator, dihitung dari data.
 
     Isi: sel (tahap, indikator) dengan episode terbanyak, tahap yang hanya terkena satu
     indikator, indikator yang hanya muncul di satu tahap, dan tahap yang bersih.
     """
-    m = _matriks_tahap(tgl, db)
+    m = _matriks_tahap(tgl, faskes_akses, db)
     if m.values.sum() == 0:
         return "Tidak ada episode bermasalah pada tanggal pantau ini."
     kalimat = []
@@ -145,18 +206,9 @@ def daftar_episode(tgl, status=None, indikator=None, tahap=None, faskes_akses=No
     kode = tm.groupby("id_episode")["kode"].apply(lambda k: ", ".join(sorted(set(k))))
     ep["kode"] = ep["id_episode"].map(kode).fillna("-")
 
-    # --- INI INTI LOGIKA FILTER PASIEN (Versi SQL Terisolasi) ---
+    # Nakes: hanya episode pasien yang pernah singgah di faskesnya (lihat _episode_singgah)
     if faskes_akses and faskes_akses != 'Semua':
-        # Query langsung ke tabel master 'episodes' untuk mencari id_episode yang berelasi
-        q_filter = """
-            SELECT id_episode FROM episodes 
-            WHERE id_pasien IN (
-                SELECT id_pasien FROM episodes WHERE faskes = ?
-            )
-        """
-        valid_episodes = _sql(q_filter, (faskes_akses,), db)["id_episode"].tolist()
-        ep = ep[ep["id_episode"].isin(valid_episodes)]
-    # -----------------------------------------------------------
+        ep = ep[ep["id_episode"].isin(_episode_singgah(faskes_akses, db))]
 
     # Lanjutkan filter bawaan
     if status and status != 'Semua':
@@ -298,6 +350,13 @@ def timeline_episode(id_episode, tgl, db=DB):
 
     kosong = "(kosong)"
     isi = lambda nilai: _isi(nilai, kosong)  # noqa: E731
+    # Penanda rujukan antarfaskes, ditaruh sebelum Diagnosis pada tanggal yang sama
+    asal_id = _isi(e.get("rujukan_dari"))
+    if asal_id:
+        asal = _sql("SELECT faskes FROM episodes WHERE id_episode = ?", (asal_id,), db)
+        faskes_asal = asal["faskes"].iloc[0] if len(asal) else "episode tidak ditemukan"
+        tambah("rujukan", _tgl(e["tgl_diagnosis"]), f"Rujukan dari {asal_id} ({faskes_asal})",
+               "episode lanjutan dari faskes lain", "Share")
     tambah("diagnosis", _tgl(e["tgl_diagnosis"]), "Diagnosis", f"metode {isi(e['metode_diagnosis'])}", "Create")
     tambah("mulai", _tgl(e["tgl_mulai"]), "Mulai obat", f"paduan {isi(e['paduan'])}", "Create")
     tambah("dibuat", _tgl(e["created_at"]), "Record dibuat",
