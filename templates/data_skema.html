@@ -1,38 +1,20 @@
 {% extends 'base.html' %}
+{% from '_komponen.html' import baris_skema_header, baris_skema %}
+{% block judul %}Data & Skema, TB-CMS{% endblock %}
 
 {% block content %}
-<h2>Data & Skema</h2>
-<p class="mb-3">
-    Alur: <b>SQLite (tabel sumber)</b> → <b>engine (15 aturan)</b> → <b>tabel hasil</b> → 
-    <b>core/queries.py</b> → <b>tampilan ini</b>. Tampilan hanya membaca.
-</p>
-
-<div class="table-responsive mb-3">
-    <table class="table table-bordered align-middle">
-        <thead class="table-light">
-            <tr>
-                <th>Nama Tabel / View</th>
-                <th>Jenis</th>
-                <th>Jumlah Baris</th>
-                <th>Kolom</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for t in tabel_list %}
-            <tr>
-                <td><b>{{ t.nama }}</b></td>
-                <td><span class="badge {% if t.jenis == 'table' %}bg-primary{% else %}bg-info text-dark{% endif %}">{{ t.jenis }}</span></td>
-                <td>{{ t.jumlah_baris }}</td>
-                <td><small class="text-muted"><code>{{ t.kolom }}</code></small></td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</div>
-
-<p class="text-muted small">
-    Tabel sumber: pasien, episodes, followups, outcomes, salinan_sitb, audit_logs, aturan.<br>
-    Tabel hasil (ditulis engine): run_pemantauan, temuan, episode_status.<br>
-    View: v_episode_status, v_ringkasan, v_temuan.
-</p>
+<section class="tb-section tb-section--longgar" aria-labelledby="h-skema">
+    <h2 class="tb-section-title tb-ts-heading-bagian" id="h-skema">Data &amp; Skema</h2>
+    <p class="tb-keterangan tb-ts-teks-isi-kecil">Alur: SQLite (tabel sumber) → engine (15 aturan) → tabel hasil → core/queries.py → tampilan ini. Tampilan hanya membaca.</p>
+    <div class="tb-tabel tb-tabel--skema" role="table" aria-label="Tabel dan view SQLite">
+        {{ baris_skema_header() }}
+        {% for t in tabel_list %}{{ baris_skema(t) }}{% endfor %}
+    </div>
+    <p class="tb-info tb-ts-teks-keterangan">
+        Tabel sumber: pasien, episodes, followups, outcomes, salinan_sitb, audit_logs, aturan.<br>
+        Tabel staging: staging_pasien, staging_episodes, staging_followups, staging_outcomes, staging_salinan_sitb; log: log_sinkronisasi.<br>
+        Tabel hasil (ditulis engine): run_pemantauan, temuan, episode_status.<br>
+        View: v_episode_status, v_ringkasan, v_temuan.
+    </p>
+</section>
 {% endblock %}

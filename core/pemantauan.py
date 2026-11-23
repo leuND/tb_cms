@@ -3,13 +3,14 @@
 Dipakai tombol "Jalankan pemantauan" di tampilan. Status dan aturan tetap dihitung
 oleh engine (runner.jalankan); fungsi ini hanya memanggilnya lewat import.
 """
+import os
 import sys
 from pathlib import Path
 
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parent.parent
-DB = ROOT / "data" / "tb_cms.sqlite"
+DB = Path(os.environ.get("TBCMS_DB", ROOT / "data" / "tb_cms.sqlite"))
 sys.path.insert(0, str(ROOT / "engine"))  # runner.py memakai "from loader import ..."
 
 import runner  # noqa: E402

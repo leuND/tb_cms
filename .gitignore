@@ -3,17 +3,18 @@ venv/
 __pycache__/
 .vscode/
 
-# 2. Blokir semua file database & data mentah
-data/*.csv
+# 2. Database hasil build (dibuat ulang lewat tools/import_sqlite.py)
+#    CSV sintetis dan katalog aturan IKUT di-commit supaya clone baru bisa jalan
 data/*.sqlite
-config/rules_catalog.csv
 
 # 3. Blokir semua folder hasil uji coba & demo lama
 demo/
 app_streamlit/
 docs/
 tests/
-tools/
+tools/*
+!tools/import_sqlite.py
+!tools/siapkan_demo.py
 .claude/
 
 # 4. Blokir semua file sisa prototipe & log di root

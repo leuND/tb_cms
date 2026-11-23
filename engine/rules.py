@@ -102,7 +102,12 @@ def K5_jarak_episode_sama_nik_kurang_dari_60_hari(data, cfg, tgl_pantau):
     ep = data["episodes"].merge(data["pasien"], on="id_pasien", how="left")
     ep = ep.sort_values(by=["nik", "tgl_diagnosis"])
     hari = (ep["tgl_diagnosis"] - ep.groupby("nik")["tgl_diagnosis"].shift(1)).dt.days
-    kena = ep[(hari < cfg["K5"])]
+    # Pengecualian: episode baru yang rujukan_dari-nya menunjuk episode lebih lama dengan NIK sama
+    # adalah rujukan antarfaskes, bukan duplikasi. Kolom tidak ada (data lama) = tidak ada rujukan.
+    rujukan = ep["rujukan_dari"] if "rujukan_dari" in ep else pd.Series(None, index=ep.index, dtype=object)
+    asal = ep.set_index("id_episode")
+    dirujuk = (rujukan.map(asal["nik"]) == ep["nik"]) & (rujukan.map(asal["tgl_diagnosis"]) <= ep["tgl_diagnosis"])
+    kena = ep[(hari < cfg["K5"]) & ~dirujuk]
     detail = [f"{ep.loc[i, 'id_episode']} berjarak {int(hari[i])} hari dengan episode sebelumnya" for i in kena.index]
     return _temuan(kena["id_episode"], "K5", detail)
 

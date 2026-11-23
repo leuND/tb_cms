@@ -1,0 +1,11 @@
+{% extends 'base.html' %}
+{% from '_komponen.html' import kartu_kesimpulan, catatan %}
+{% block judul %}Belum ada hasil, TB-CMS{% endblock %}
+
+{% block content %}
+<section class="tb-section" aria-labelledby="h-kosong">
+    <h2 class="tb-section-title tb-ts-heading-bagian" id="h-kosong">Belum ada hasil pemantauan</h2>
+    {{ kartu_kesimpulan('Database belum punya run. Pilih tanggal pantau di kalender sidebar; engine akan dijalankan untuk tanggal itu dan hasilnya disimpan.') }}
+    {{ catatan('Tanggal pantau tidak boleh setelah hari ini.') }}
+</section>
+{% endblock %}

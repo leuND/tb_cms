@@ -1,0 +1,172 @@
+{# Makro komponen TB-CMS. Satu makro = satu komponen di halaman "Komponen TB-CMS" di Figma.
+   Pakai:  {% from '_komponen.html' import lencana, stat_row %}  #}
+
+{# Icon/* dan Ikon *: berkas SVG di static/img #}
+{% macro ikon(nama, lebar, tinggi, kelas='') -%}
+<img class="tb-icon {{ kelas }}" src="{{ url_for('static', filename='img/' ~ nama ~ '.svg') }}" width="{{ lebar }}" height="{{ tinggi }}" alt="" aria-hidden="true">
+{%- endmacro %}
+
+{# Lencana (status Sinambung / Perlu Cek / Terputus) #}
+{% macro lencana(status) -%}
+<span class="tb-lencana tb-lencana--{{ status|lower|replace(' ', '-') }}">{{ status }}</span>
+{%- endmacro %}
+
+{# LencanaKeparahan (tinggi / sedang / rendah) #}
+{% macro lencana_keparahan(tingkat) -%}
+<span class="tb-lencana tb-lencana--kecil tb-lencana--{{ tingkat|lower }}">{{ tingkat|lower }}</span>
+{%- endmacro %}
+
+{# LencanaJenis (table / view) #}
+{% macro lencana_jenis(jenis) -%}
+<span class="tb-lencana tb-lencana--kecil tb-lencana--{{ jenis }}">{{ jenis }}</span>
+{%- endmacro %}
+
+{# SectionTitle #}
+{% macro section_title(judul, tag='h2') -%}
+<{{ tag }} class="tb-section-title tb-ts-heading-bagian">{{ judul }}</{{ tag }}>
+{%- endmacro %}
+
+{# StatRow: daftar pasangan (label, nilai). Empat kolom di desktop/tablet, kartu 2x2 di ponsel. #}
+{% macro stat_row(pasangan) -%}
+<div class="tb-stat">
+  {% for label, nilai in pasangan %}
+  <div class="tb-stat__item">
+    <p class="tb-stat__label tb-ts-label-tebal">{{ label }}</p>
+    <p class="tb-stat__nilai tb-ts-stat-angka">{{ nilai }}</p>
+  </div>
+  {% endfor %}
+</div>
+{%- endmacro %}
+
+{# KartuKesimpulan #}
+{% macro kartu_kesimpulan(teks) -%}
+<p class="tb-card tb-ts-teks-isi">{{ teks }}</p>
+{%- endmacro %}
+
+{# Catatan #}
+{% macro catatan(teks) -%}
+<p class="tb-catatan tb-ts-teks-isi-kecil">{{ teks }}</p>
+{%- endmacro %}
+
+{# Banner. kategori Flask: success, danger, warning, info #}
+{% macro banner(kategori, pesan) -%}
+{% set jenis = {'success': 'sukses', 'danger': 'gagal', 'warning': 'peringatan'}.get(kategori, 'info') -%}
+<p class="tb-banner tb-banner--{{ jenis }} tb-ts-teks-isi-kecil" role="{{ 'alert' if jenis in ('gagal', 'peringatan') else 'status' }}">{{ pesan }}</p>
+{%- endmacro %}
+
+{# Field/Select. terang=True untuk di atas latar terang (filter). #}
+{% macro field_select(id, nama, label, pilihan, terpilih, terang=False, auto=False) -%}
+<div class="tb-field{{ ' tb-field--terang' if terang }}">
+  <label class="tb-field__label tb-ts-field-label" for="{{ id }}">{{ label }}</label>
+  <select class="tb-field__control" id="{{ id }}" name="{{ nama }}"{{ ' data-kirim-otomatis' if auto }}>
+    {% for p in pilihan %}
+    <option value="{{ p.nilai }}" {{ 'selected' if p.nilai == terpilih }}>{{ p.teks }}</option>
+    {% endfor %}
+  </select>
+</div>
+{%- endmacro %}
+
+{# BarisTabel: header dan data episode #}
+{% macro baris_episode_header() -%}
+<div class="tb-tabel__header tb-ts-label-tebal-kecil" role="row">
+  <span role="columnheader">ID Episode</span><span role="columnheader">Faskes</span><span role="columnheader">Tahap</span>
+  <span role="columnheader">Indikator</span><span role="columnheader">Status</span><span role="columnheader" class="tb-sr">Buka</span>
+</div>
+{%- endmacro %}
+
+{% macro baris_episode(e, url) -%}
+<div class="tb-baris tb-ts-teks-isi-kecil" role="row">
+  <span role="cell" class="tb-baris__id"><a class="tb-baris__tautan" href="{{ url }}" aria-label="Buka detail episode {{ e.id_episode }}">{{ e.id_episode }}</a></span>
+  <span role="cell" class="tb-baris__faskes">{{ e.faskes }}</span>
+  <span role="cell" class="tb-baris__tahap">{{ e.tahap }}</span>
+  <span role="cell" class="tb-baris__indikator">{{ e.indikator }}</span>
+  <span role="cell" class="tb-baris__status">{{ lencana(e.status) }}</span>
+  <span role="cell" class="tb-baris__panah" aria-hidden="true">{{ ikon('icon-chevron-kanan', 24, 24) }}</span>
+</div>
+{%- endmacro %}
+
+{# BarisAturan #}
+{% macro baris_aturan_header() -%}
+<div class="tb-tabel__header tb-ts-label-tebal-kecil" role="row">
+  <span role="columnheader">Kode</span><span role="columnheader">Indikator</span><span role="columnheader">Kondisi</span>
+  <span role="columnheader">Tahap</span><span role="columnheader">Keparahan</span><span role="columnheader">Steward</span>
+  <span role="columnheader">Aspek</span><span role="columnheader">Dasar</span>
+</div>
+{%- endmacro %}
+
+{% macro baris_aturan(r) -%}
+<div class="tb-baris tb-ts-teks-keterangan" role="row">
+  <span role="cell" class="tb-baris__kode tb-ts-teks-kode">{{ r.kode }}</span>
+  <span role="cell" class="tb-baris__indikator">{{ r.indikator }}</span>
+  <span role="cell" class="tb-baris__kondisi">{{ r.kondisi }}</span>
+  <span role="cell" class="tb-baris__tahap" data-steward="{{ r.steward }}">{{ r.tahap }}</span>
+  <span role="cell" class="tb-baris__keparahan">{{ lencana_keparahan(r.keparahan) }}</span>
+  <span role="cell" class="tb-baris__steward">{{ r.steward }}</span>
+  <span role="cell" class="tb-baris__aspek">{{ r.aspek }}</span>
+  <span role="cell" class="tb-baris__dasar">{{ r.dasar }}</span>
+</div>
+{%- endmacro %}
+
+{# BarisSkema #}
+{% macro baris_skema_header() -%}
+<div class="tb-tabel__header tb-ts-label-tebal-kecil" role="row">
+  <span role="columnheader">Nama Tabel / View</span><span role="columnheader">Jenis</span>
+  <span role="columnheader">Jumlah Baris</span><span role="columnheader">Kolom</span>
+</div>
+{%- endmacro %}
+
+{% macro baris_skema(t) -%}
+<div class="tb-baris tb-ts-teks-keterangan" role="row">
+  <span role="cell" class="tb-baris__nama tb-ts-label-tebal-kecil">{{ t.nama }}</span>
+  <span role="cell" class="tb-baris__jenis">{{ lencana_jenis(t.jenis) }}</span>
+  <span role="cell" class="tb-baris__jumlah">{{ t.jumlah_baris }}</span>
+  <span role="cell" class="tb-baris__kolom tb-ts-teks-kode">{{ t.kolom }}</span>
+</div>
+{%- endmacro %}
+
+{# KartuTemuan #}
+{% macro kartu_temuan(t) -%}
+<li class="tb-kartu-temuan">
+  <div class="tb-kartu-temuan__atas">
+    <p class="tb-kartu-temuan__kode tb-ts-label-tebal-sedang">{{ t.kode }}</p>
+    {{ lencana_keparahan(t.keparahan) }}
+  </div>
+  <p class="tb-kartu-temuan__detail tb-ts-teks-isi-kecil">{{ t.detail or t.kondisi }}</p>
+  <p class="tb-kartu-temuan__meta tb-ts-teks-keterangan"><span>{{ t.tahap }}</span><span aria-hidden="true">·</span><span>{{ t.indikator }}</span></p>
+  <p class="tb-kartu-temuan__steward tb-ts-teks-keterangan"><span>Steward:</span><span>{{ t.steward or '-' }}</span></p>
+</li>
+{%- endmacro %}
+
+{# ItemGarisWaktu. x = satu titik dari core.queries.timeline_episode #}
+{% macro item_garis_waktu(x) -%}
+{% set rujukan = x.kunci == 'rujukan' -%}
+{% set belum = x.warna == 'abu' -%}
+<li class="tb-waktu">
+  <div class="tb-waktu__rel" aria-hidden="true">
+    <span class="tb-waktu__titik{{ ' tb-waktu__titik--rujukan' if rujukan }}{{ ' tb-waktu__titik--temuan' if x.warna == 'merah' }}{{ ' tb-waktu__titik--batas' if x.jenis == 'batas' }}{{ ' tb-waktu__titik--belum' if belum }}"></span>
+    <span class="tb-waktu__garis"></span>
+  </div>
+  <div class="tb-waktu__isi">
+    <p class="tb-waktu__tanggal tb-ts-teks-keterangan">{{ x.tanggal or '—' }}{{ ' · batas' if x.jenis == 'batas' }}{{ ' · ' ~ x.tahap }}</p>
+    {% if rujukan %}
+    <p class="tb-waktu__judul tb-ts-label-tebal-kecil">Rujukan masuk</p>
+    <span class="tb-waktu__penanda">{{ x.peristiwa }}</span>
+    {% else %}
+    <p class="tb-waktu__judul tb-ts-label-tebal-kecil">{{ x.peristiwa }}</p>
+    {% endif %}
+    <p class="tb-waktu__ket tb-ts-teks-isi-kecil">{{ x.keterangan or '' }}</p>
+    {% for t in x.temuan %}
+    <p class="tb-waktu__temuan tb-ts-teks-keterangan"><strong>{{ t.kode }}</strong> {{ t.detail or '' }} <span>(steward: {{ t.steward or '-' }})</span></p>
+    {% endfor %}
+  </div>
+</li>
+{%- endmacro %}
+
+{# BarisAudit #}
+{% macro baris_audit(a) -%}
+<li class="tb-audit__baris">
+  <p class="tb-audit__waktu tb-ts-teks-keterangan">{{ a.waktu }}</p>
+  <p class="tb-audit__aktor tb-ts-label-tebal-kecil">{{ a.oleh }}</p>
+  <p class="tb-audit__aksi tb-ts-teks-isi-kecil">{{ a.aksi }}</p>
+</li>
+{%- endmacro %}
