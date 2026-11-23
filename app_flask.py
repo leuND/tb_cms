@@ -1,6 +1,5 @@
 import hmac
 import os
-import secrets
 import sys
 from datetime import date
 from functools import wraps
@@ -20,8 +19,10 @@ load_dotenv(ROOT / ".env")
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "")  # kosong = login admin dinonaktifkan
 
 app = Flask(__name__)
-# Tanpa SECRET_KEY: kunci acak sementara, sesi hilang setiap server restart
-app.secret_key = os.environ.get("SECRET_KEY") or secrets.token_hex(32)
+SECRET_KEY = os.environ.get("SECRET_KEY")
+if not SECRET_KEY:
+    raise RuntimeError("SECRET_KEY wajib diisi lewat environment.")
+app.secret_key = SECRET_KEY
 
 def admin_required(fungsi):
     """Route khusus admin. Dicek di server, bukan hanya disembunyikan di menu:
@@ -242,4 +243,4 @@ def data_skema():
     return render_template('data_skema.html', tabel_list=data_tabel)
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=False)

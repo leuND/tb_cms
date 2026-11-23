@@ -15,6 +15,7 @@ tests/
 tools/*
 !tools/import_sqlite.py
 !tools/siapkan_demo.py
+!tools/start_production.py
 .claude/
 
 # 4. Blokir semua file sisa prototipe & log di root
