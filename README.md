@@ -80,6 +80,19 @@ python app_flask.py
 
 Buka peramban (browser) dan akses alamat `http://127.0.0.1:5000/`.
 
+# **Deploy PythonAnywhere**
+
+1. Kloning repo ke `/home/USERNAME/tb_cms` dan buat virtual environment.
+2. Instal dependency:
+   `python -m pip install --user -r requirements.txt`
+3. Buat SQLite awal:
+   `python tools/siapkan_demo.py`
+4. Salin `.env.example` menjadi `.env`, lalu isi `SECRET_KEY` dan, bila diperlukan, `ADMIN_PASSWORD`.
+5. Saat membuat Web app, pilih Flask/manual configuration dan arahkan WSGI file ke contoh `pythonanywhere_wsgi.py.example`.
+6. Ganti `USERNAME` pada `PROJECT_DIR`, path database, dan path folder masuk sesuai akun.
+7. Jangan mengunggah `.env` ke Git; isinya tetap ditolak oleh `.gitignore`.
+8. Reload web app dari tab **Web** setelah instalasi atau perubahan `.env`.
+
 # **🔒 Panduan Akses Role**
 
 Sistem menyediakan dua tingkatan hak akses untuk pengujian dan operasional:
