@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+{% from '_komponen.html' import stat_row, kartu_kesimpulan, catatan, kartu_temuan, item_garis_waktu, baris_audit %}
+{% block judul %}Episode {{ detail.episode.id_episode }}, TB-CMS{% endblock %}
+
+{% block content %}
+<a class="tb-kembali tb-ts-label-tebal-kecil" href="{{ url_for('episode', status=f_status, indikator=f_indikator, tahap=f_tahap) }}">‹ Kembali ke Daftar Episode</a>
+
+<section class="tb-section" aria-labelledby="h-episode">
+    <h2 class="tb-section-title tb-ts-heading-bagian" id="h-episode">Episode {{ detail.episode.id_episode }}</h2>
+    {{ stat_row(stat_episode) }}
+    {{ kartu_kesimpulan(detail.kesimpulan) }}
+    {{ catatan('Pasien ' ~ detail.episode.id_pasien ~ ', ' ~ (detail.episode.jenis_kelamin or '-') ~ ', lahir ' ~ (detail.episode.tgl_lahir or '-')
+               ~ '. Sumber ' ~ (detail.episode.sumber_sistem or '(kosong)') ~ ', dibuat oleh ' ~ (detail.episode.dibuat_oleh or '(kosong)') ~ '.') }}
+    {% if not detail.episode.nik %}
+    {{ catatan('NIK kosong: episode ini tidak bisa ditautkan ke episode lain milik pasien yang sama (tertangkap C1).') }}
+    {% endif %}
+</section>
+
+<section class="tb-section" aria-labelledby="h-temuan">
+    <h2 class="tb-section-title tb-ts-heading-bagian" id="h-temuan">Temuan Aturan</h2>
+    {% if temuan %}
+    <ul class="tb-temuan">
+        {% for t in temuan %}{{ kartu_temuan(t) }}{% endfor %}
+    </ul>
+    {% else %}
+    {{ kartu_kesimpulan('Tidak ada aturan yang memicu temuan pada tanggal pantau ini.') }}
+    {% endif %}
+</section>
+
+<section class="tb-section" aria-labelledby="h-waktu">
+    <h2 class="tb-section-title tb-ts-heading-bagian" id="h-waktu">Garis Waktu</h2>
+    <ol class="tb-garis-waktu">
+        {% for x in timeline %}{{ item_garis_waktu(x) }}{% endfor %}
+    </ol>
+    {{ catatan('Titik merah = ada temuan. Titik teal = aman. Kotak kosong = titik batas (garis tepi pudar bila belum terlewati). Titik hijau muda = rujukan.') }}
+</section>
+
+<section class="tb-section" aria-labelledby="h-audit">
+    <h2 class="tb-section-title tb-ts-heading-bagian" id="h-audit">Audit Trail</h2>
+    {% if audit %}
+    <ul class="tb-audit">
+        {% for a in audit %}{{ baris_audit(a) }}{% endfor %}
+    </ul>
+    {% else %}
+    {{ kartu_kesimpulan('Tidak ada baris audit untuk episode ini.') }}
+    {% endif %}
+</section>
+
+<section class="tb-section" aria-labelledby="h-sitb">
+    <h2 class="tb-section-title tb-ts-heading-bagian" id="h-sitb">Salinan SITB</h2>
+    {% if detail.sitb %}
+    {{ kartu_kesimpulan('Jenis kelamin ' ~ (detail.sitb.jenis_kelamin or '-') ~ ', diagnosis ' ~ (detail.sitb.tgl_diagnosis or '-') ~ ', status sinkron ' ~ (detail.sitb.status_sinkron or '-') ~ '.') }}
+    {% else %}
+    {{ kartu_kesimpulan('Tidak ada salinan SITB untuk episode ini.') }}
+    {% endif %}
+</section>
+{% endblock %}

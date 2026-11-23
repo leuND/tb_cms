@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+{% from '_komponen.html' import field_select, baris_episode_header, baris_episode, catatan %}
+{% block judul %}Daftar Episode, TB-CMS{% endblock %}
+
+{% block content %}
+<section class="tb-section tb-section--longgar" aria-labelledby="h-daftar">
+    <h2 class="tb-section-title tb-ts-heading-bagian" id="h-daftar">Daftar Episode</h2>
+
+    <form class="tb-filter" method="get" action="{{ url_for('episode') }}" aria-label="Filter episode">
+        {{ field_select('fStatus', 'status', 'Status :', opsi_status, f_status, terang=True, auto=True) }}
+        {{ field_select('fIndikator', 'indikator', 'Indikator :', opsi_indikator, f_indikator, terang=True, auto=True) }}
+        {{ field_select('fTahap', 'tahap', 'Tahap :', opsi_tahap, f_tahap, terang=True, auto=True) }}
+        <noscript><button type="submit" class="tb-tombol tb-ts-label-tebal-kecil">Terapkan filter</button></noscript>
+    </form>
+
+    <p class="tb-info tb-ts-teks-keterangan">Menampilkan {{ daftar|length }} dari {{ total_semua }} episode. Klik baris untuk melihat detail.</p>
+
+    {% if daftar %}
+    <div class="tb-tabel tb-tabel--episode" role="table" aria-label="Daftar episode">
+        {{ baris_episode_header() }}
+        {% for e in daftar %}
+        {{ baris_episode(e, url_for('episode', status=f_status, indikator=f_indikator, tahap=f_tahap, id=e.id_episode)) }}
+        {% endfor %}
+    </div>
+    {% else %}
+    {{ catatan('Tidak ada episode yang cocok dengan filter ini.') }}
+    {% endif %}
+</section>
+{% endblock %}

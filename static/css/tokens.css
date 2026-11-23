@@ -1,0 +1,102 @@
+/* Token desain TB-CMS.
+   Sumber: variabel Figma "TB-CMS Warna" dan "TB-CMS Ukuran" (file TB-CMS-UI-UX).
+   Nama mengikuti variabel Figma: "color/status/perlu-cek-bg" menjadi --color-status-perlu-cek-bg.
+   Ubah nilai di sini saja; tidak ada hex mentah di template atau tb.css. */
+:root {
+  /* Primitif */
+  --tb-primitive-seafoam: #9be8d8;
+  --tb-primitive-ice: #e2f6f7;
+
+  /* Latar */
+  --tb-bg-page: #e2f6f7;
+  --tb-bg-sidebar: #0d2935;
+  --tb-bg-nav-item: #e2f6f7;
+  --tb-bg-field: #e2f6f7;
+  --tb-bg-card: #9be8d8;
+  --tb-bg-stat-label: #187c8b;
+  --tb-bg-stat-value: #9be8d8;
+
+  /* Teks */
+  --tb-text-heading: #0d2935;
+  --tb-text-body: #0d2935;
+  --tb-text-accent: #187c8b;
+  --tb-text-on-dark: #e2f6f7;
+  --tb-text-on-dark-muted: #9be8d8;
+
+  /* Garis */
+  --tb-border-accent: #187c8b;
+  --tb-border-sidebar-divider: #e2f6f7;
+  --tb-border-stat-label-divider: #116471;
+  --tb-border-stat-value-divider: #8cd6c6;
+
+  /* Ikon dan dekorasi */
+  --tb-icon-default: #0d2935;
+  --tb-deco-lung: #1c8394;
+  --tb-deco-ring: #1c8394;
+
+  /* Status kesinambungan (komponen Lencana) */
+  --color-status-sinambung-bg: #e2f6f7;
+  --color-status-sinambung-text: #116471;
+  --color-status-perlu-cek-bg: #f7e3a8;
+  --color-status-perlu-cek-text: #7a5200;
+  --color-status-terputus-bg: #f6c9bf;
+  --color-status-terputus-text: #8c2f1e;
+
+  /* Keparahan aturan (LencanaKeparahan) */
+  --color-severity-tinggi-bg: #f6c9bf;
+  --color-severity-tinggi-text: #8c2f1e;
+  --color-severity-sedang-bg: #f7e3a8;
+  --color-severity-sedang-text: #7a5200;
+  --color-severity-rendah-bg: #116471;
+  --color-severity-rendah-text: #e2f6f7;
+
+  /* Jenis objek database (LencanaJenis) */
+  --color-jenis-table-bg: #187c8b;
+  --color-jenis-table-text: #e2f6f7;
+  --color-jenis-view-bg: #37b4a6;
+  --color-jenis-view-text: #0d2935;
+
+  /* Banner */
+  --color-banner-sukses-bg: #9be8d8;
+  --color-banner-sukses-text: #0d2935;
+  --color-banner-gagal-bg: #f6c9bf;
+  --color-banner-gagal-text: #8c2f1e;
+  --color-banner-peringatan-bg: #f7e3a8;
+  --color-banner-peringatan-text: #7a5200;
+  --color-banner-info-bg: #e2f6f7;
+  --color-banner-info-text: #116471;
+
+  /* Mode admin */
+  --color-admin-accent: #f7e3a8;
+  --color-admin-role-bg: #116471;
+  --color-admin-danger: #f6c9bf;
+
+  /* Titik garis waktu untuk rujukan (warna aset Titik rujukan) */
+  --tb-dot-rujukan: #37b4a6;
+
+  /* Radius dan jarak */
+  --tb-radius-sm: 9px;
+  --tb-radius-md: 15px;
+  --tb-space-stat-gap: 11px;
+  --tb-space-section-gap: 71px;
+
+  /* Bayangan dan scrim (dari komponen ModalLogin dan Menu Terbuka) */
+  --tb-shadow-modal: 0 12px 32px rgba(13, 41, 54, .35);
+  --tb-scrim: rgba(13, 41, 54, .7);
+
+  /* Keluarga font */
+  --tb-font-display: "League Spartan", sans-serif;
+  --tb-font-text: "IBM Plex Sans", system-ui, sans-serif;
+  --tb-font-mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+
+  /* Skala tampilan desktop (>= 1024). Figma digambar di kanvas 1440 yang besar; 0.8 = 80%. 1 = persis Figma. */
+  --tb-skala: 0.8;
+
+  /* Ukuran yang berubah menurut layar (nilai desktop 1440; diganti di tb.css untuk tablet/ponsel) */
+  --tb-sidebar-w: clamp(300px, 29.86vw, 430px);   /* 430 di 1440 */
+  --tb-fs-brand: calc((var(--tb-sidebar-w) - 80px) * .2571);   /* 90 di 1440 */
+  --tb-fs-tagline: calc((var(--tb-sidebar-w) - 80px) * .0686); /* 24 di 1440 */
+  --tb-fs-heading: clamp(30px, 2.78vw, 40px);
+  --tb-fs-stat-label: clamp(15px, 1.667vw, 24px);
+  --tb-fs-stat-angka: clamp(46px, 5.556vw, 80px);
+}

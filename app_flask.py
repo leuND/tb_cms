@@ -3,6 +3,7 @@ import os
 import secrets
 import sys
 from datetime import date
+from functools import wraps
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -22,8 +23,21 @@ app = Flask(__name__)
 # Tanpa SECRET_KEY: kunci acak sementara, sesi hilang setiap server restart
 app.secret_key = os.environ.get("SECRET_KEY") or secrets.token_hex(32)
 
+def admin_required(fungsi):
+    """Route khusus admin. Dicek di server, bukan hanya disembunyikan di menu:
+    nakes yang membuka URL-nya langsung dialihkan ke Ringkasan dengan banner peringatan."""
+    @wraps(fungsi)
+    def terbungkus(*args, **kwargs):
+        if session.get('role') != 'admin':
+            flash("Akses terbatas. Halaman ini khusus untuk Admin / Data Steward.", "warning")
+            return redirect(url_for('ringkasan'))
+        return fungsi(*args, **kwargs)
+    return terbungkus
+
 @app.before_request
 def set_default_tanggal():
+    if request.endpoint == 'static':   # berkas CSS/gambar tidak perlu menyentuh database
+        return
     # Tanggal aktif harus punya run. Kalau belum (mis. database baru di-reset),
     # pakai 2026-10-31 atau run terakhir; kalau belum ada run sama sekali, kosongkan.
     tgl_list = q.daftar_tgl_pantau()
@@ -43,6 +57,7 @@ def inject_global_data():
     # Bawa data ini ke semua file HTML tanpa harus di-pass satu-satu
     tgl = session.get('tgl')
     return {
+        'is_admin': session.get('role') == 'admin',
         'daftar_faskes': q.daftar_faskes(),
         'tgl_aktif': tgl,
         'hari_ini': date.today().isoformat(),     # batas atas kalender
@@ -86,11 +101,9 @@ def nakesmode():
 
 
 @app.route('/proses_masuk', methods=['POST'])
+@admin_required
 def proses_masuk():
     # Simulasi sinkronisasi (data uji): proses batch siap di folder masuk/ lewat core/sinkron.py
-    if session.get('role') != 'admin':
-        flash("Akses ditolak. Sinkronisasi khusus Admin.", "danger")
-        return redirect(url_for('ringkasan'))
     hasil = sinkron.proses_folder_masuk(tgl_aktif=session.get('tgl'))
     if not hasil['batch']:
         flash("Tidak ada batch baru di folder masuk/.", "info")
@@ -140,12 +153,14 @@ def ringkasan():
     faskes_akses = session.get('faskes_akses')  # None untuk admin
     r = q.ringkasan(tgl, faskes_akses=faskes_akses)
     kesimpulan = q.kesimpulan_tahap(tgl, faskes_akses=faskes_akses)
-    return render_template('ringkasan.html', 
-                           tgl=tgl, 
-                           r=r, 
-                           kesimpulan=kesimpulan, 
-                           status_list=q.STATUS, 
-                           ind_list=q.INDIKATOR)
+    # Pasangan (label, angka) untuk dua baris statistik
+    stat_status = [("Total Episode", r['total'])] + [(s, r['status'][s]) for s in q.STATUS]
+    stat_indikator = [(i, r['indikator'][i]) for i in q.INDIKATOR]
+    return render_template('ringkasan.html',
+                           tgl=tgl,
+                           kesimpulan=kesimpulan,
+                           stat_status=stat_status,
+                           stat_indikator=stat_indikator)
 
 
 
@@ -173,6 +188,8 @@ def episode():
     
     # Konversi DataFrame ke list of dict agar mudah di-loop di HTML (mirip struct array)
     daftar = daftar_df.to_dict(orient='records')
+    # Jumlah seluruh episode yang boleh dilihat (tanpa filter), untuk "Menampilkan X dari Y"
+    total_semua = len(q.daftar_episode(tgl, faskes_akses=faskes_akses))
 
     # Cek apakah ada episode yang dipilih lewat parameter URL ?id=EXX
     selected_id = request.args.get('id')
@@ -187,39 +204,39 @@ def episode():
         if detail_data:
             timeline_data = q.timeline_episode(selected_id, tgl)
 
-    return render_template(
-        'episode.html',
+    # Pilihan untuk tiga filter ("Semua ..." = tanpa filter)
+    def opsi(semua, daftar_nilai):
+        return [{'nilai': 'Semua', 'teks': semua}] + [{'nilai': n, 'teks': n} for n in daftar_nilai]
+
+    konteks = dict(
         tgl=tgl,
-        daftar=daftar,
-        selected_id=selected_id,
-        detail=detail_data,
-        timeline=timeline_data,
-        f_status=f_status,
-        f_indikator=f_indikator,
-        f_tahap=f_tahap,
-        status_list=q.STATUS,
-        ind_list=q.INDIKATOR,
-        tahap_list=q.TAHAP,
-        warna_status=q.WARNA_STATUS
+        f_status=f_status, f_indikator=f_indikator, f_tahap=f_tahap,
+        opsi_status=opsi('Semua status', q.STATUS),
+        opsi_indikator=opsi('Semua indikator', q.INDIKATOR),
+        opsi_tahap=opsi('Semua tahap', q.TAHAP),
     )
+    if detail_data:
+        a = detail_data['angka']
+        hari = a['hari_pengobatan']
+        stat_episode = [("Hari Pengobatan", '—' if hari is None else hari), ("Follow-up", a['followup']),
+                        ("Temuan", a['temuan']), ("Rujukan", a['rujukan'])]
+        return render_template(
+            'episode_detail.html', detail=detail_data, timeline=timeline_data, stat_episode=stat_episode,
+            temuan=detail_data['temuan'].to_dict(orient='records'),
+            audit=detail_data['audit'].to_dict(orient='records'), **konteks)
+    return render_template('episode_daftar.html', daftar=daftar, total_semua=total_semua, **konteks)
 
 @app.route('/aturan')
+@admin_required
 def aturan():
-    if session.get('role') != 'admin':
-        flash("Akses terbatas. Halaman ini khusus untuk Admin / Data Steward.", "warning")
-        return redirect(url_for('ringkasan'))
-        
     df_aturan = q.katalog_aturan()
     kolom = ["kode", "indikator", "kondisi", "tahap", "keparahan", "steward", "aspek", "dasar"]
     data_aturan = df_aturan[kolom].to_dict(orient='records')
     return render_template('aturan.html', aturan_list=data_aturan)
 
 @app.route('/data_skema')
+@admin_required
 def data_skema():
-    if session.get('role') != 'admin':
-        flash("Akses terbatas. Halaman ini khusus untuk Admin / Data Steward.", "warning")
-        return redirect(url_for('ringkasan'))
-        
     df_tabel = q.daftar_tabel()
     data_tabel = df_tabel.to_dict(orient='records')
     return render_template('data_skema.html', tabel_list=data_tabel)

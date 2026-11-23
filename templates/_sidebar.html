@@ -1,0 +1,81 @@
+{% from '_komponen.html' import ikon %}
+{# Sidebar: Brand, isian (Faskes Aktif untuk nakes / KartuRole untuk admin, Tanggal Pantau), navigasi,
+   KartuSimulasi (admin), TombolAkses. Desktop: tetap. Tablet/ponsel: offcanvas (CSS). #}
+{% macro nav_item(endpoint, teks) -%}
+{% set aktif = request.endpoint == endpoint -%}
+<li><a class="tb-nav__item {{ 'tb-ts-nav-item-aktif' if aktif else 'tb-ts-nav-item' }}" href="{{ url_for(endpoint) }}"{{ ' aria-current="page"'|safe if aktif }}>{{ teks }}</a></li>
+{%- endmacro %}
+
+<aside class="tb-sidebar" id="tbSidebar" aria-label="Menu utama">
+  <div class="tb-sidebar__merek">
+    <div class="tb-brand">
+      <p class="tb-brand__title tb-ts-brand-judul">TB-CMS</p>
+      <p class="tb-brand__tagline">Monitoring Kesinambungan Data Episode TB</p>
+    </div>
+    <hr class="tb-sidebar__garis">
+  </div>
+
+  <div class="tb-sidebar__isian">
+    {% if is_admin %}
+    <div class="tb-kartu-role">
+      <p class="tb-kartu-role__label tb-ts-teks-keterangan">Role Aktif:</p>
+      <p class="tb-kartu-role__nama tb-ts-label-tebal-sedang">ADMINISTRATOR</p>
+      <p class="tb-kartu-role__cakupan tb-ts-teks-kode">(Semua Faskes)</p>
+    </div>
+    {% else %}
+    <form action="{{ url_for('ganti_faskes') }}" method="post" class="tb-field">
+      <label class="tb-field__label tb-ts-field-label" for="tbFaskes">Faskes Aktif :</label>
+      <select class="tb-field__control" id="tbFaskes" name="faskes" data-kirim-otomatis>
+        {% for f in daftar_faskes %}
+        <option value="{{ f }}" {{ 'selected' if session.get('faskes_akses') == f }}>{{ f }}</option>
+        {% endfor %}
+      </select>
+      <noscript><button type="submit" class="tb-tombol tb-ts-label-tebal-kecil">Terapkan</button></noscript>
+    </form>
+    {% endif %}
+
+    <div class="tb-sidebar__tanggal">
+      {# Field/Date: seluruh kontrol adalah tombol pembuka kalender. Maks = hari ini; server menolak masa depan. #}
+      <form action="{{ url_for('set_tanggal') }}" method="post" class="tb-field">
+        <label class="tb-field__label tb-ts-field-label" for="tbTanggal">Tanggal Pantau :</label>
+        <input class="tb-field__control" type="date" id="tbTanggal" name="tgl" value="{{ tgl_aktif or '' }}" max="{{ hari_ini }}" required data-kirim-otomatis>
+        <noscript><button type="submit" class="tb-tombol tb-ts-label-tebal-kecil">Terapkan</button></noscript>
+      </form>
+      {% if run_aktif %}
+      <p class="tb-keterangan-run tb-ts-teks-keterangan">Run dijalankan {{ run_aktif.dijalankan_pada.replace('T', ' ')[:16] }}. Hasil dihitung dari data sumber pada saat run itu.</p>
+      {% else %}
+      <p class="tb-keterangan-run tb-ts-teks-keterangan">Belum ada run. Pilih tanggal pantau.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <nav aria-label="Halaman">
+    <ul class="tb-nav">
+      {{ nav_item('ringkasan', 'Ringkasan') }}
+      {{ nav_item('episode', 'Episode') }}
+      {% if is_admin %}
+      <li class="tb-nav__garis" role="separator"></li>
+      <li class="tb-nav__seksi tb-ts-label-tebal-kecil">ADMIN / ENGINE</li>
+      {{ nav_item('aturan', 'Aturan') }}
+      {{ nav_item('data_skema', 'Data & Skema') }}
+      {% endif %}
+    </ul>
+  </nav>
+
+  {% if is_admin %}
+  {# KartuSimulasi: bukan koneksi ke SIMRS/SITB asli, hanya memproses folder masuk/ #}
+  <form class="tb-simulasi" action="{{ url_for('proses_masuk') }}" method="post" data-proses-sinkron>
+    <p class="tb-simulasi__judul tb-ts-label-tebal-kecil">Simulasi sinkronisasi (data uji)</p>
+    <p class="tb-simulasi__teks tb-ts-teks-keterangan">Tidak terhubung ke SIMRS/SITB asli. Batch menunggu: {{ batch_menunggu }}</p>
+    <button type="submit" class="tb-simulasi__tombol">{{ ikon('ikon-sinkron', 16, 16) }}<span>Proses folder masuk</span></button>
+  </form>
+  {% endif %}
+
+  <div class="tb-sidebar__spasi"></div>
+
+  {% if is_admin %}
+  <a class="tb-akses tb-akses--admin tb-ts-label-tebal-kecil" href="{{ url_for('nakesmode') }}">{{ ikon('ikon-keluar', 16, 16) }}<span>Keluar dari Admin</span></a>
+  {% else %}
+  <button type="button" class="tb-akses tb-akses--nakes tb-ts-teks-isi-kecil" data-buka-modal="tbModalLogin" aria-haspopup="dialog">{{ ikon('ikon-kunci', 16, 16) }}<span>Admin? Masuk ke sini</span></button>
+  {% endif %}
+</aside>
